@@ -473,6 +473,14 @@ func (clh *cloudHypervisor) CreateVM(ctx context.Context, id string, network Net
 		}
 	}
 
+	if clh.config.IOMMU {
+		platformConfig := *chclient.NewPlatformConfig()
+		platformConfig.SetNumPciSegments(2)
+		iommuSegments := []int32{1}
+		platformConfig.SetIommuSegments(iommuSegments)
+		clh.vmconfig.SetPlatform(platformConfig)
+	}
+
 	// Create the VM memory config via the constructor to ensure default values are properly assigned
 	clh.vmconfig.Memory = chclient.NewMemoryConfig(int64((utils.MemUnit(clh.config.MemorySize) * utils.MiB).ToBytes()))
 	// shared memory should be enabled if using vhost-user(kata uses virtiofsd)
@@ -783,6 +791,11 @@ func (clh *cloudHypervisor) hotPlugVFIODevice(device *config.VFIODev) error {
 		return fmt.Errorf("Failed to hotplug device %+v %s", device, openAPIClientError(err))
 	}
 	clh.devicesIds[device.ID] = pciInfo.GetId()
+
+	if clh.config.IOMMU {
+		//clhDevice.SetPciSegment(1)
+		clhDevice.SetIommu(true)
+	}
 
 	// clh doesn't use bridges, so the PCI path is simply the slot
 	// number of the device.  This will break if clh starts using
