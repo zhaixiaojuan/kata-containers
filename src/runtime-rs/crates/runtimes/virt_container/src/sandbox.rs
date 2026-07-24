@@ -33,7 +33,6 @@ use hypervisor::ch::CloudHypervisor;
 use hypervisor::device::topology::PCIePort;
 use hypervisor::device::util::{get_host_path, DEVICE_TYPE_CHAR};
 use hypervisor::remote::Remote;
-use hypervisor::{BlockConfigModern, Hypervisor, VfioDeviceBase, is_vfio_ap_device};
 use hypervisor::VsockConfig;
 use hypervisor::HYPERVISOR_REMOTE;
 #[cfg(all(
@@ -43,6 +42,7 @@ use hypervisor::HYPERVISOR_REMOTE;
 use hypervisor::{dragonball::Dragonball, HYPERVISOR_DRAGONBALL};
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 use hypervisor::{firecracker::Firecracker, HYPERVISOR_FIRECRACKER};
+use hypervisor::{is_vfio_ap_device, BlockConfigModern, Hypervisor, VfioDeviceBase};
 #[cfg(feature = "openvmm")]
 use hypervisor::{openvmm::OpenVmm, HYPERVISOR_NAME_OPENVMM};
 use hypervisor::{qemu::Qemu, HYPERVISOR_QEMU};
@@ -87,6 +87,19 @@ use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 
 pub(crate) const VIRTCONTAINER: &str = "virt_container";
+
+fn pod_cdi_devices_or_empty(result: Result<Vec<String>>) -> Vec<String> {
+    match result {
+        Ok(devices) => devices,
+        Err(err) => {
+            warn!(
+                sl!(),
+                "failed to query Pod Resources CDI devices, falling back to OCI VFIO discovery: {err:?}"
+            );
+            Vec::new()
+        }
+    }
+}
 
 pub struct SandboxRestoreArgs {
     pub sid: String,
@@ -400,12 +413,13 @@ impl VirtSandbox {
                 annotations.get("io.kubernetes.cri.sandbox-namespace")
             );
 
-            let cdi_devices = pod_resources_rs::pod_resources::get_pod_cdi_devices(
-                pod_resource_socket,
-                annotations,
-            )
-            .await
-            .context("failed to query Pod Resources CDI devices")?;
+            let cdi_devices = pod_cdi_devices_or_empty(
+                pod_resources_rs::pod_resources::get_pod_cdi_devices(
+                    pod_resource_socket,
+                    annotations,
+                )
+                .await,
+            );
             info!(sl!(), "pod cdi devices: {:?}", cdi_devices);
 
             let device_nodes = handle_cdi_devices(&cdi_devices).await?;
@@ -1591,5 +1605,22 @@ impl Persist for VirtSandbox {
             factory: None,
             cancel_token: CancellationToken::default(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pod_cdi_devices_or_empty;
+    use anyhow::anyhow;
+
+    #[test]
+    fn pod_cdi_query_errors_fall_back_to_oci_discovery() {
+        let devices = vec!["vendor.com/device=device0".to_string()];
+
+        assert_eq!(pod_cdi_devices_or_empty(Ok(devices.clone())), devices);
+        assert!(
+            pod_cdi_devices_or_empty(Err(anyhow!("PodResources API Get method disabled")))
+                .is_empty()
+        );
     }
 }
