@@ -128,6 +128,7 @@ options:
 	agent
 	agent-ctl
 	boot-image-se
+	boot-image-se-runtime-rs
 	coco-guest-components
 	cloud-hypervisor
 	firecracker
@@ -1149,6 +1150,12 @@ install_se_image() {
 	"${se_image_builder}" --destdir="${destdir}"
 }
 
+install_se_image_runtime_rs() {
+	# shellcheck disable=SC2154
+	info "Create IBM SE composable image (runtime-rs) configured with AA_KBC=${AA_KBC}"
+	"${se_image_builder}" --composable --destdir="${destdir}"
+}
+
 #Install kernel component helper
 install_cached_kernel_tarball_component() {
 	local kernel_name=${1}
@@ -1866,6 +1873,8 @@ handle_build() {
 	busybox) install_busybox ;;
 
 	boot-image-se) install_se_image ;;
+
+	boot-image-se-runtime-rs) install_se_image_runtime_rs ;;
 
 	coco-guest-components) install_coco_guest_components ;;
 

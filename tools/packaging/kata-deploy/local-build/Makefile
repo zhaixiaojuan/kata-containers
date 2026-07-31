@@ -44,6 +44,7 @@ BASE_SERIAL_TARBALLS = rootfs-image-tarball \
 else ifeq ($(ARCH), s390x)
 BASE_TARBALLS = serial-targets \
 	boot-image-se-tarball \
+	boot-image-se-runtime-rs-tarball \
 	kernel-debug-tarball \
 	kernel-tarball \
 	qemu-tarball \
@@ -309,6 +310,14 @@ else
 DEPS := kernel-tarball rootfs-initrd-confidential-tarball
 endif
 boot-image-se-tarball: $(DEPS)
+	${MAKE} $@-build
+
+ifeq ($(FAKE_SE_IMAGE),true)
+DEPS :=
+else
+DEPS := kernel-tarball rootfs-initrd-tarball
+endif
+boot-image-se-runtime-rs-tarball: $(DEPS)
 	${MAKE} $@-build
 
 stratovirt-tarball:
