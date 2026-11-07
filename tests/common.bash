@@ -1446,6 +1446,7 @@ function arch_to_rust() {
 		riscv64) echo "riscv64gc";;
 		x86_64) echo "${arch}";;
 		s390x) echo "${arch}";;
+		loongarch64) echo "${arch}";;
 		*) die "unsupported architecture: ${arch}";;
 	esac
 }

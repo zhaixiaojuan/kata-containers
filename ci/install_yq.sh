@@ -29,7 +29,7 @@ function verify_yq_exists() {
 # Install via binary download, as we may not have golang installed at this point
 function install_yq() {
 	local yq_pkg="github.com/mikefarah/yq"
-	local yq_version=v4.44.5
+	local yq_version=v4.48.2
 	local precmd=""
 	local yq_path=""
 	INSTALL_IN_GOPATH=${INSTALL_IN_GOPATH:-true}
@@ -93,6 +93,9 @@ function install_yq() {
 		;;
 	"s390x")
 		goarch=s390x
+		;;
+	"loongarch64")
+		goarch=loong64
 		;;
 	"*")
 		die "Arch ${sysInfo[1]} not supported"
